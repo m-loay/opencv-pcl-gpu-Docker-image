@@ -1,9 +1,18 @@
 # CUDA 11.2 Update 1 (11.2.1) + OpenGL (glvnd 1.2)
 FROM nvidia/cudagl:11.2.0-devel-ubuntu20.04
-
 LABEL maintainer "Mohamed Loay"
 
+# ======== Image Configuration  ========
+ENV jCore="-j8"
+ENV VTK_VERSION="8.2.0"
+ENV VTK_FOLDER="8.2"
+ENV PCL_VERSION="1.11.0"
+ENV CUDNN_VERSION="cudnn-10.0-linux-x64-v7.6.5.32"
+ENV OPENCV_VERSION="4.5.0"
+
 # ======== Install sudo & update system ========
+RUN apt-get update -y
+RUN apt-get install -y sudo
 RUN apt-get update && apt-get install -y sudo apt-utils curl
 RUN sudo apt-get update && sudo apt-get -y upgrade
 
@@ -12,7 +21,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ARG DEBIAN_FRONTEND=noninteractive
 
 # ======== Installing Generic Tools ========
-ENV DEBIAN_FRONTEND=noninteractive
+
+#install general libs
 RUN apt-get update \
     && apt-get install -y \
         build-essential \
@@ -29,29 +39,12 @@ RUN apt-get update \
         python3-dev \
         python3-numpy \
         python3-matplotlib \
-        ninja-build \
         libssl-dev \
         libgl1-mesa-dev \
         cmake \
-        gnuplot \
-        gcovr \
-        googletest
+        gnuplot
 
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-RUN python3.8 get-pip.py
-RUN pip install gcovr
-RUN pip install git+https://github.com/gcovr/gcovr.git
-
-# ======== Installing gtest ========
-RUN apk add --no-cache -q -f git cmake make g++
-RUN git clone -q https://github.com/google/googletest.git /googletest \
-  && mkdir -p /googletest/build \
-  && cd /googletest/build \
-  && cmake .. && make && make install \
-  && cd / && rm -rf /googletest
-
-# ======== GTK lib for the graphical user functionalites coming from OpenCV highghui module  ========
-ENV DEBIAN_FRONTEND=noninteractive
+# GTK lib for the graphical user functionalites coming from OpenCV highghui module 
 RUN apt-get install -y \ 
     libgtk-3-dev \
     libtbb-dev \
@@ -64,29 +57,6 @@ RUN apt-get install -y \
     libgphoto2-dev \
     libeigen3-dev \
     libhdf5-dev doxygen
-
-
-# ======== Installing VTK ========
-ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR /tmp/install
-RUN sudo apt-get update -y
-RUN sudo apt-get install -y libxt-dev
-
-RUN wget https://www.vtk.org/files/release/8.2/VTK-8.2.0.tar.gz 
-RUN tar -xf VTK-8.2.0.tar.gz
-RUN cd VTK-8.2.0  \
-    && mkdir build && cd build \    
-    && cmake .. -G Ninja -D VTK_MODULE_ENABLE_VTK_RenderingContextOpenGL2=YES \
-                -D CMAKE_BUILD_TYPE=Release \
-                -D WITH_CUDA=true  \
-                -D CUDA_ARCH_BIN=7.5 \
-                -D BUILD_GPU=true  \
-    && ninja -j$(nproc) && ninja install
-
-# ======== Installing PCL library ========
-ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR /tmp/install
-ENV PCL_VERSION="1.11.0"
 
 # PCL dependencies
 RUN apt-get install -y \
@@ -106,48 +76,79 @@ RUN apt-get install -y \
     openmpi-common \
     libqhull-dev
 
+#install covar
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+RUN python3.8 get-pip.py
+RUN pip install gcovr
+RUN pip install git+https://github.com/gcovr/gcovr.git
+
+# ======== Installing gtest ========
+RUN git clone -q https://github.com/google/googletest.git /googletest \
+  && mkdir -p /googletest/build \
+  && cd /googletest/build \
+  && cmake .. && make ${jCore} && make install \
+  && cd / && rm -rf /googletest
+
+
+# ======== Installing VTK ========
+WORKDIR /tmp/install
+RUN sudo apt-get update -y
+RUN sudo apt-get install -y libxt-dev
+
+RUN wget https://www.vtk.org/files/release/${VTK_FOLDER}/VTK-${VTK_VERSION}.tar.gz 
+RUN tar -xf VTK-${VTK_VERSION}.tar.gz
+RUN cd VTK-${VTK_VERSION}  \
+    && mkdir build && cd build \    
+    && cmake .. -D VTK_MODULE_ENABLE_VTK_RenderingContextOpenGL2=YES \
+                -D CMAKE_BUILD_TYPE=Release \
+                -D WITH_CUDA=true  \
+                -D CUDA_ARCH_BIN=7.5 \
+                -D BUILD_GPU=true  \
+    && make ${jCore} && make install
+RUN unset VTK_VERSION
+RUN unset VTK_FOLDER
+
+# ======== Installing PCL library ========
+WORKDIR /tmp/install
+
+# Download and Install PCL
 RUN wget https://github.com/PointCloudLibrary/pcl/archive/pcl-${PCL_VERSION}.tar.gz \
     && tar -xf pcl-${PCL_VERSION}.tar.gz \
     && cd pcl-pcl-${PCL_VERSION} \
     && mkdir build \
     && cd build \
-    && cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release \
                 -DVTK_RENDERING_BACKEND=OpenGL2 \
                 -DWITH_CUDA=true  \
                 -D CUDA_ARCH_BIN=7.5 \
                 -DBUILD_GPU=true  \
-    && ninja -j$(nproc)\
-    && ninja install
+    && make -j4\
+    && make install
 
 RUN apt-get update && apt-get install -y pcl-tools
 RUN unset PCL_VERSION
 
-
 # ======== Installing OpenCv ========
-# Python libraries for python3
-ENV DEBIAN_FRONTEND=noninteractive
-
-WORKDIR /home
-#download open cv and install it
-ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /tmp/install
 
-COPY cudnn-10.0-linux-x64-v7.6.5.32.tgz /tmp/install/cudnn-10.0-linux-x64-v7.6.5.32.tgz
-RUN tar -zxvf cudnn-10.0-linux-x64-v7.6.5.32.tgz \
+# Install CUDNN for OpenCV
+ENV CUDNN_VERSION="cudnn-10.0-linux-x64-v7.6.5.32"
+COPY ${CUDNN_VERSION}.tgz /tmp/install/${CUDNN_VERSION}.tgz
+RUN tar -zxvf ${CUDNN_VERSION}.tgz \
 && sudo cp cuda/include/cudnn.h /usr/local/cuda/include/ \
 && sudo cp cuda/lib64/libcudnn* /usr/local/cuda/lib64/ \
 && sudo chmod a+r /usr/local/cuda/include/cudnn.h \
 && sudo chmod a+r /usr/local/cuda/lib64/libcudnn*
+RUN unset CUDNN_VERSION
 
-
-ENV OPENCV_VERSION="4.5.0"
+# Download and Install OpenCV
 RUN wget https://github.com/Itseez/opencv/archive/${OPENCV_VERSION}.zip -O opencv.zip \
     && unzip opencv.zip \
     && wget https://github.com/Itseez/opencv_contrib/archive/${OPENCV_VERSION}.zip -O opencv_contrib.zip \
     && unzip opencv_contrib \
     && cd opencv-${OPENCV_VERSION} \
     && mkdir build && cd build \
-    && cmake .. -G Ninja -D CMAKE_BUILD_TYPE=RELEASE \
+    && cmake .. -D CMAKE_BUILD_TYPE=RELEASE \
 	-D CMAKE_INSTALL_PREFIX=/usr/local \
     -D CMAKE_BUILD_TYPE=RELEASE \
     -D CMAKE_INSTALL_PREFIX=/usr/local \
@@ -173,9 +174,12 @@ RUN wget https://github.com/Itseez/opencv/archive/${OPENCV_VERSION}.zip -O openc
     -DPYTHON_INCLUDE_DIR=$(python3.8 -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())") \
     -DPYTHON_PACKAGES_PATH=$(python3.8 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())") .. \
     -DBUILD_opencv_world=OFF \
-     && sudo ninja -j$(nproc) \
-     && sudo ninja install \
+     && sudo make -j8 \
+     && sudo make install \
      && sudo ldconfig
+
+RUN unset OPENCV_VERSION
+
 
 # ======== Clean ========
 WORKDIR /tmp/install
