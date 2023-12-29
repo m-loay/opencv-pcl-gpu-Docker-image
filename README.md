@@ -16,6 +16,6 @@ create a develope environment in docker
       docker build -t dev-env-gpu .
 
 ## Run
-use melodic.bash
+use dev.bash
 
 
