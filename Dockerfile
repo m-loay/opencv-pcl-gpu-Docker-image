@@ -97,15 +97,15 @@ RUN python3.8 get-pip.py
 RUN pip install gcovr
 RUN pip install git+https://github.com/gcovr/gcovr.git
 
-# ======== Installing gtest ========
+# ======== Install gtest ========
 RUN git clone -q https://github.com/google/googletest.git /googletest \
-  && mkdir -p /googletest/build \
-  && cd /googletest/build \
-  && cmake .. && make ${jCore} && make install \
-  && cd / && rm -rf /googletest
+    && mkdir -p /googletest/build \
+    && cd /googletest/build \
+    && cmake .. && make ${jCore} && make install \
+    && cd / && rm -rf /googletest
 
 
-# ======== Installing VTK ========
+# ======== Install VTK ========
 WORKDIR /tmp/install
 RUN sudo apt-get update -y
 RUN sudo apt-get install -y libxt-dev
@@ -115,15 +115,15 @@ RUN tar -xf VTK-${VTK_VERSION}.tar.gz
 RUN cd VTK-${VTK_VERSION}  \
     && mkdir build && cd build \    
     && cmake .. -D VTK_MODULE_ENABLE_VTK_RenderingContextOpenGL2=YES \
-                -D CMAKE_BUILD_TYPE=Release \
-                -D WITH_CUDA=true  \
-                -D CUDA_ARCH_BIN=7.5 \
-                -D BUILD_GPU=true  \
+    -D CMAKE_BUILD_TYPE=Release \
+    -D WITH_CUDA=true  \
+    -D CUDA_ARCH_BIN=7.5 \
+    -D BUILD_GPU=true  \
     && make ${jCore} && make install
 RUN unset VTK_VERSION
 RUN unset VTK_FOLDER
 
-# ======== Installing PCL library ========
+# ======== Install PCL ========
 WORKDIR /tmp/install
 
 # Download and Install PCL
@@ -133,26 +133,26 @@ RUN wget https://github.com/PointCloudLibrary/pcl/archive/pcl-${PCL_VERSION}.tar
     && mkdir build \
     && cd build \
     && cmake .. -DCMAKE_BUILD_TYPE=Release \
-                -DVTK_RENDERING_BACKEND=OpenGL2 \
-                -DWITH_CUDA=true  \
-                -D CUDA_ARCH_BIN=7.5 \
-                -DBUILD_GPU=true  \
+    -DVTK_RENDERING_BACKEND=OpenGL2 \
+    -DWITH_CUDA=true  \
+    -D CUDA_ARCH_BIN=7.5 \
+    -DBUILD_GPU=true  \
     && make ${jCore}\
     && make install
 
 RUN apt-get update && apt-get install -y pcl-tools
 RUN unset PCL_VERSION
 
-# ======== Installing OpenCv ========
+# ======== Install OpenCv ========
 WORKDIR /tmp/install
 
 # Install CUDNN for OpenCV
 COPY ${CUDNN_VERSION}.tgz /tmp/install/${CUDNN_VERSION}.tgz
 RUN tar -zxvf ${CUDNN_VERSION}.tgz \
-&& sudo cp cuda/include/cudnn.h /usr/local/cuda/include/ \
-&& sudo cp cuda/lib64/libcudnn* /usr/local/cuda/lib64/ \
-&& sudo chmod a+r /usr/local/cuda/include/cudnn.h \
-&& sudo chmod a+r /usr/local/cuda/lib64/libcudnn*
+    && sudo cp cuda/include/cudnn.h /usr/local/cuda/include/ \
+    && sudo cp cuda/lib64/libcudnn* /usr/local/cuda/lib64/ \
+    && sudo chmod a+r /usr/local/cuda/include/cudnn.h \
+    && sudo chmod a+r /usr/local/cuda/lib64/libcudnn*
 RUN unset CUDNN_VERSION
 
 # Download and Install OpenCV
@@ -163,7 +163,7 @@ RUN wget https://github.com/Itseez/opencv/archive/${OPENCV_VERSION}.zip -O openc
     && cd opencv-${OPENCV_VERSION} \
     && mkdir build && cd build \
     && cmake .. -D CMAKE_BUILD_TYPE=RELEASE \
-	-D CMAKE_INSTALL_PREFIX=/usr/local \
+    -D CMAKE_INSTALL_PREFIX=/usr/local \
     -D CMAKE_BUILD_TYPE=RELEASE \
     -D CMAKE_INSTALL_PREFIX=/usr/local \
     -D INSTALL_PYTHON_EXAMPLES=OFF \
@@ -176,10 +176,10 @@ RUN wget https://github.com/Itseez/opencv/archive/${OPENCV_VERSION}.zip -O openc
     -D OPENCV_DNN_CUDA=ON \
     -DWITH_EIGEN=ON \
     -D WITH_CUBLAS=ON \
-	-D WITH_CUDNN=ON \
-	-D OPENCV_DNN_CUDA=ON \
-	-D ENABLE_FAST_MATH=1 \
-	-D CUDA_FAST_MATH=1 \
+    -D WITH_CUDNN=ON \
+    -D OPENCV_DNN_CUDA=ON \
+    -D ENABLE_FAST_MATH=1 \
+    -D CUDA_FAST_MATH=1 \
     -D CUDA_ARCH_BIN=7.5 \
     -D WITH_CUBLAS=1 \
     -D BUILD_opencv_python2=OFF \
@@ -194,10 +194,6 @@ RUN wget https://github.com/Itseez/opencv/archive/${OPENCV_VERSION}.zip -O openc
 RUN unset OPENCV_VERSION
 # Set environment variable for OpenCV library path
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-
-# ======== Install PCL  ========#
-RUN apt-get update && apt-get install -y \
-    libpcl-dev
 
 # ========  Create a symbolic link for Python ======== #
 RUN ln -s /usr/bin/python$PYTHON_VERSION /usr/bin/python
