@@ -13,7 +13,7 @@ create a develope environment in docker
 
 - Build an image from scratch:
 
-      docker build -t mloay/opencv-pcl-gpu .
+      docker build -t dev-env-gpu .
 
 ## Run
 use melodic.bash

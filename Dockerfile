@@ -8,7 +8,8 @@ ENV VTK_VERSION="8.2.0"
 ENV VTK_FOLDER="8.2"
 ENV PCL_VERSION="1.11.0"
 ENV CUDNN_VERSION="cudnn-10.0-linux-x64-v7.6.5.32"
-ENV OPENCV_VERSION="4.5.0"
+ENV OPENCV_VERSION="4.5.1"
+ENV PYTHON_VERSION 3.8
 
 # ======== Install sudo & update system ========
 RUN apt-get update -y
@@ -25,27 +26,41 @@ ARG DEBIAN_FRONTEND=noninteractive
 #install general libs
 RUN apt-get update \
     && apt-get install -y \
-        build-essential \
-        apt-utils \
-        wget \
-        unzip \
-        git \
-        git-lfs \
-        gdb \
-        g++ \
-        python3.8 \
-        libpython3-dev \
-        make \
-        python3-dev \
-        python3-numpy \
-        python3-matplotlib \
-        libssl-dev \
-        libgl1-mesa-dev \
-        cmake \
-        gnuplot
+    build-essential \
+    cmake \
+    make \
+    gdb \
+    g++ \
+    git \
+    git-lfs \
+    wget \
+    unzip \
+    pkg-config \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libv4l-dev \
+    libxvidcore-dev \
+    libx264-dev \
+    libxine2-dev \
+    libatlas-base-dev \
+    libssl-dev \
+    libgl1-mesa-dev \
+    python$PYTHON_VERSION \
+    python3-dev \
+    python3-pip \
+    python3-numpy \
+    python3-matplotlib \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install OpenCV dependencies
+RUN pip3 install numpy
 
 # GTK lib for the graphical user functionalites coming from OpenCV highghui module 
-RUN apt-get install -y \ 
+RUN  apt-get update && apt-get install -y \ 
     libgtk-3-dev \
     libtbb-dev \
     libatlas-base-dev \
@@ -122,7 +137,7 @@ RUN wget https://github.com/PointCloudLibrary/pcl/archive/pcl-${PCL_VERSION}.tar
                 -DWITH_CUDA=true  \
                 -D CUDA_ARCH_BIN=7.5 \
                 -DBUILD_GPU=true  \
-    && make -j4\
+    && make ${jCore}\
     && make install
 
 RUN apt-get update && apt-get install -y pcl-tools
@@ -132,7 +147,6 @@ RUN unset PCL_VERSION
 WORKDIR /tmp/install
 
 # Install CUDNN for OpenCV
-ENV CUDNN_VERSION="cudnn-10.0-linux-x64-v7.6.5.32"
 COPY ${CUDNN_VERSION}.tgz /tmp/install/${CUDNN_VERSION}.tgz
 RUN tar -zxvf ${CUDNN_VERSION}.tgz \
 && sudo cp cuda/include/cudnn.h /usr/local/cuda/include/ \
@@ -162,24 +176,31 @@ RUN wget https://github.com/Itseez/opencv/archive/${OPENCV_VERSION}.zip -O openc
     -D OPENCV_DNN_CUDA=ON \
     -DWITH_EIGEN=ON \
     -D WITH_CUBLAS=ON \
-    -DBUILD_opencv_python3=ON \
 	-D WITH_CUDNN=ON \
 	-D OPENCV_DNN_CUDA=ON \
 	-D ENABLE_FAST_MATH=1 \
 	-D CUDA_FAST_MATH=1 \
-	-D CUDA_ARCH_BIN=7.5 \
-	-D WITH_CUBLAS=1 \
-    -DCMAKE_INSTALL_PREFIX=$(python3.8 -c "import sys; print(sys.prefix)") \
-    -DPYTHON_EXECUTABLE=$(which python3.8) \
-    -DPYTHON_INCLUDE_DIR=$(python3.8 -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())") \
-    -DPYTHON_PACKAGES_PATH=$(python3.8 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())") .. \
-    -DBUILD_opencv_world=OFF \
-     && sudo make -j8 \
-     && sudo make install \
-     && sudo ldconfig
+    -D CUDA_ARCH_BIN=7.5 \
+    -D WITH_CUBLAS=1 \
+    -D BUILD_opencv_python2=OFF \
+    -D BUILD_opencv_python3=ON \
+    -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python$PYTHON_VERSION \
+    -D PYTHON3_EXECUTABLE=/usr/bin/python$PYTHON_VERSION \
+    .. && \
+    make ${jCore} && \
+    make install && \
+    ldconfig
 
 RUN unset OPENCV_VERSION
+# Set environment variable for OpenCV library path
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
+# ======== Install PCL  ========#
+RUN apt-get update && apt-get install -y \
+    libpcl-dev
+
+# ========  Create a symbolic link for Python ======== #
+RUN ln -s /usr/bin/python$PYTHON_VERSION /usr/bin/python
 
 # ======== Clean ========
 WORKDIR /tmp/install
